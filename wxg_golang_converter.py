@@ -4,7 +4,7 @@ import sys
 
 from class_definition_classes import WxContainer, WxObjectClass
 from codegen import golang_str_repr, GenStruct, GenFile
-from xml_helpers import child_elements, child_element_text
+from xml_helpers import child_elements, child_element_text, element_text
 
 
 def const_convert(s):
@@ -50,15 +50,26 @@ LIST_BOX.add_property("tooltip", "ToolTip", golang_str_repr)
 STATIC_BITMAP = WxObjectClass(wxg_name="wxStaticBitmap", base_name="EditStaticBitmap", wx_class_name="wx.StaticBitmap",
                               constructor_name="wx.NewStaticBitmap", constructor_params_form="wx.ID_ANY, wx.NullBitmap")
 
+BUTTON = WxObjectClass(wxg_name="wxButton", base_name="EditButton", wx_class_name="wx.Button",
+                       constructor_name="wx.NewButton",
+                       constructor_params_form="wx.ID_ANY, %s, wx.DefaultPosition, wx.DefaultSize, 0, wx.DefaultValidator, %s",
+                       properties_for_constructor=[("label", golang_str_repr), ("label", golang_str_repr)])
+
+"""_init__(self, Window parent, int id=-1, String label=EmptyString,
+            Point pos=DefaultPosition, Size size=DefaultSize,
+            long style=0, Validator validator=DefaultValidator,
+            String name=ButtonNameStr) -> Button
+"""
 
 STATIC_BITMAP.add_property("size", "MinSize", make_size_expr)
-IGNORE_OBJECTS = ["EditSpacer", "EditButton", STATIC_BITMAP.base_name]
+IGNORE_OBJECTS = [STATIC_BITMAP.base_name]
 
 OBJECTS = [
     BOX_SIZER,
     LABEL,
     LIST_BOX,
     STATIC_BITMAP,
+    BUTTON,
 ]
 """:type: list of WxObject"""
 
@@ -129,6 +140,16 @@ def convert(input_filename, output_filename):
                                     value = value_func(value)
                                 st.add_property_line(member_name, go_property_name, value)
 
+                        # add any event handlers
+
+                        for event_tag in child_elements(obj, "events"):
+                            for handler_tag in child_elements(event_tag, "handler"):
+                                event = handler_tag.getAttribute("event")
+                                callback = element_text(handler_tag)
+                                st.add_binding(callback, event, member_name)
+
+                        # handle containers (enqueuing any contained objects)
+
                         if isinstance(member_class_obj, WxContainer):
                             for subobject in child_elements(obj, "object"):
                                 subobject_class = subobject.getAttribute("class")
@@ -139,7 +160,27 @@ def convert(input_filename, output_filename):
                                 item_child = sizer_item_children[0]
 
                                 ic_base = item_child.getAttribute("base")
-                                if ic_base in IGNORE_OBJECTS:
+
+                                if ic_base == "EditSpacer":
+                                    is_horiz = obj.getAttribute("orient") == "wxHORIZONTAL"
+
+                                    if is_horiz:
+                                        width = int(child_element_text(item_child, "width"))
+                                        spacer_size = width
+                                    else:
+                                        height = int(child_element_text(item_child, "height"))
+                                        spacer_size = height
+
+                                    # additional_params = build_additional_params(member_class_obj.subobject_constructor_params_form,
+                                    #                                             member_class_obj.subobject_properties_for_constructor,
+                                    #                                             subobject)
+
+                                    st.add_layout_line(member_name, "%d" % spacer_size, None, False,
+                                                       method="AddSpacer")
+
+                                    continue
+
+                                elif ic_base in IGNORE_OBJECTS:
                                     continue
 
                                 item_child_name = item_child.getAttribute("name")
@@ -151,10 +192,10 @@ def convert(input_filename, output_filename):
                                 # if parent_field_name == form_struct_field_name:
                                 #     continue
 
-                                st.layout_lines.append((member_name, item_child_name, additional_params))
+                                st.add_layout_line(member_name, item_child_name, additional_params)
 
                     else:
-                        assert False, "Unknown base " + object_base
+                        assert False, "Unknown base %s; did you remember to add its definition to the OBJECTS list?" % object_base
 
         out.code_gen(output_handle)
 

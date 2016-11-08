@@ -15,11 +15,19 @@ class GenStruct(object):
 
         self.properties_lines = []
 
+        self.bindings = []
+
     def add_init_line(self, member_name, constructor, additional_params_expressions, takes_parent):
         self.init_lines.append((member_name, constructor, additional_params_expressions, takes_parent))
 
     def add_property_line(self, field_name, property_name, additional_params_expressions):
         self.properties_lines.append((field_name, property_name, additional_params_expressions))
+
+    def add_layout_line(self, parent_field_name, cur_field_name, additional_params_expressions, obj_in_struct=True, method="Add"):
+        self.layout_lines.append((parent_field_name, cur_field_name, additional_params_expressions, obj_in_struct, method))
+
+    def add_binding(self, event_handler, event_id, field_to_bind):
+        self.bindings.append((event_handler, event_id, field_to_bind))
 
 
 def golang_str_repr(s):
@@ -67,9 +75,16 @@ class GenFile(object):
                     param_fragments.append(additional_params_expressions)
                 init_line = "out.%s = %s(%s)" % (member_name, constructor, ", ".join(param_fragments))
                 print >> output_handle, "\t%s" % init_line
+
             print >> output_handle, "\t"
             print >> output_handle, "\tout.set_properties()"
             print >> output_handle, "\tout.do_layout()"
+            print >> output_handle, "\t"
+
+            # bindings
+            for event_handler, event_id, field_to_bind in struct.bindings:
+                print >> output_handle, "\twx.Bind(out, wx.%s, %s, out.%s.GetId())" % (event_id, event_handler, field_to_bind)
+
             print >> output_handle, "\t"
             print >> output_handle, "\treturn out"
             print >> output_handle, "}"
@@ -77,12 +92,14 @@ class GenFile(object):
 
             # layout method
             print >> output_handle, "func (out %s) do_layout() {" % struct.name
-            for parent_field_name, cur_field_name, additional_params_expressions in struct.layout_lines:
+            for parent_field_name, cur_field_name, additional_params_expressions, obj_in_struct, method in struct.layout_lines:
                 # assert layout_line.endswith(";")
+                if obj_in_struct:
+                    cur_field_name = "out.%s" % cur_field_name
                 if additional_params_expressions is None:
-                    layout_line = "out.%s.Add(out.%s)" % (parent_field_name, cur_field_name)
+                    layout_line = "out.%s.%s(%s)" % (parent_field_name, method, cur_field_name)
                 else:
-                    layout_line = "out.%s.Add(out.%s, %s)" % (parent_field_name, cur_field_name, additional_params_expressions)
+                    layout_line = "out.%s.%s(%s, %s)" % (parent_field_name, method, cur_field_name, additional_params_expressions)
                 print >> output_handle, "\t%s" % layout_line
 
             print "\t"

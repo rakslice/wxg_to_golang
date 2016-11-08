@@ -27,3 +27,17 @@ def child_element_text(node, name, default_value=""):
     if not found:
         return default_value
     return "".join(parts)
+
+
+def element_text(element, default_value=""):
+    parts = []
+    found = False
+    for node in element.childNodes:
+        if node.nodeType == element.TEXT_NODE:
+            found = True
+            assert isinstance(node, xml.dom.minidom.Text)
+            # noinspection PyUnresolvedReferences
+            parts.append(node.nodeValue)
+    if not found:
+        return default_value
+    return "".join(parts)
