@@ -38,13 +38,19 @@ def golang_str_repr(s):
 class GenFile(object):
     """Main code generation class"""
 
-    def __init__(self):
+    def __init__(self, generation_comments):
         self.structs = []
         """:type: list of GenStruct"""
+        self.generation_comments = generation_comments
 
     def code_gen(self, output_handle):
         """Generate a golang source code file for the structs this object has been populated with"""
         print >> output_handle, "package main"
+
+        print >> output_handle, ""
+
+        for comment in self.generation_comments:
+            print >> output_handle, "// %s" % comment
 
         print >> output_handle, ""
 
