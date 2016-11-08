@@ -28,6 +28,12 @@ def create_dict_from_list(l, key_property_name):
     return out
 
 
+def make_size_expr(size_str):
+    values = [int(x.strip()) for x in size_str.split(",")]
+    size_expr = "wx.NewSize(%d, %d)" % tuple(values)
+    return size_expr
+
+
 BOX_SIZER = WxContainer("wxBoxSizer", "EditBoxSizer", "wx.BoxSizer", "wx.NewBoxSizer",
                         "%s", [("orient", const_convert)],
                         "sizeritem",
@@ -41,12 +47,18 @@ LIST_BOX = WxObjectClass("wxListBox", "EditListBox", "wx.ListBox", "wx.NewListBo
                          )
 LIST_BOX.add_property("tooltip", "ToolTip", golang_str_repr)
 
-IGNORE_OBJECTS = ["EditStaticBitmap", "EditSpacer", "EditButton"]
+STATIC_BITMAP = WxObjectClass(wxg_name="wxStaticBitmap", base_name="EditStaticBitmap", wx_class_name="wx.StaticBitmap",
+                              constructor_name="wx.NewStaticBitmap", constructor_params_form="wx.ID_ANY, wx.NullBitmap")
+
+
+STATIC_BITMAP.add_property("size", "MinSize", make_size_expr)
+IGNORE_OBJECTS = ["EditSpacer", "EditButton", STATIC_BITMAP.base_name]
 
 OBJECTS = [
     BOX_SIZER,
     LABEL,
     LIST_BOX,
+    STATIC_BITMAP,
 ]
 """:type: list of WxObject"""
 
@@ -76,8 +88,8 @@ def convert(input_filename, output_filename):
 
                 size = child_element_text(form, "size", None)
                 if size is not None:
-                    values = [int(x) for x in size.split(", ")]
-                    st.add_property_line(None, "Size", "wx.NewSize(%d, %d)" % tuple(values))
+                    size_expr = make_size_expr(size)
+                    st.add_property_line(None, "Size", size_expr)
 
                 bgcolor = child_element_text(form, "background", None)
                 if bgcolor is not None:
