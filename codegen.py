@@ -68,8 +68,18 @@ class GenFile(object):
             print >> output_handle, "}"
             print >> output_handle, ""
 
+            events_struct_name = "%sEvents" % struct.name
+
+            # interface for bindings
+            print >> output_handle, "type %s interface {" % events_struct_name
+            for event_handler, event_id, field_to_bind in struct.bindings:
+                print >> output_handle, "\t%s(e wx.Event)" % event_handler
+            print >> output_handle, "}"
+
+            print >> output_handle, ""
+
             # init function
-            print >> output_handle, "func init%s() *%s {" % (struct.name, struct.name)
+            print >> output_handle, "func init%s(eventInterface %s) *%s {" % (struct.name, events_struct_name, struct.name)
             print >> output_handle, "\tout := &%s{}" % struct.name
             print >> output_handle, "\tout.%s = %s(wx.NullWindow, wx.ID_ANY, %s)" % (struct.self_field_name, struct.constructor, golang_str_repr(struct.title))
 
@@ -89,7 +99,7 @@ class GenFile(object):
 
             # bindings
             for event_handler, event_id, field_to_bind in struct.bindings:
-                print >> output_handle, "\twx.Bind(out, wx.%s, %s, out.%s.GetId())" % (event_id, event_handler, field_to_bind)
+                print >> output_handle, "\twx.Bind(out, wx.%s, eventInterface.%s, out.%s.GetId())" % (event_id, event_handler, field_to_bind)
 
             print >> output_handle, "\t"
             print >> output_handle, "\treturn out"
