@@ -20,6 +20,9 @@ def parse_args():
     parser.add_argument("--force", "-f",
                         default=False, action="store_true",
                         help="overwrite existing file")
+    parser.add_argument("--package-name",
+                        default="main",
+                        help="golang package name to use in output go source code")
     return parser.parse_args()
 
 
@@ -40,7 +43,7 @@ def main():
     if not options.force and os.path.exists(output_filename):
         die("Output file '%s' already exists; use -f to overwrite" % output_filename)
 
-    wxg_golang_converter.convert(input_filename, output_filename)
+    wxg_golang_converter.convert(input_filename, output_filename, options.package_name)
 
 
 if __name__ == "__main__":

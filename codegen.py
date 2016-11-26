@@ -43,9 +43,9 @@ class GenFile(object):
         """:type: list of GenStruct"""
         self.generation_comments = generation_comments
 
-    def code_gen(self, output_handle):
+    def code_gen(self, output_handle, package_name):
         """Generate a golang source code file for the structs this object has been populated with"""
-        print >> output_handle, "package main"
+        print >> output_handle, "package %s" % package_name
 
         print >> output_handle, ""
 
