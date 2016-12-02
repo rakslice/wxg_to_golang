@@ -64,7 +64,7 @@ BUTTON = WxObjectClass(wxg_name="wxButton", base_name="EditButton", wx_class_nam
 """
 
 STATIC_BITMAP.add_property("size", "MinSize", make_size_expr)
-IGNORE_OBJECTS = [STATIC_BITMAP.base_name]
+IGNORE_OBJECTS = []  # STATIC_BITMAP.base_name
 
 OBJECTS = [
     BOX_SIZER,
@@ -172,11 +172,11 @@ def convert(input_filename, output_filename, package_name):
                                     is_horiz = obj.getAttribute("orient") == "wxHORIZONTAL"
 
                                     if is_horiz:
-                                        width = int(child_element_text(item_child, "width"))
-                                        spacer_size = width
-                                    else:
                                         height = int(child_element_text(item_child, "height"))
                                         spacer_size = height
+                                    else:
+                                        width = int(child_element_text(item_child, "width"))
+                                        spacer_size = width
 
                                     # additional_params = build_additional_params(member_class_obj.subobject_constructor_params_form,
                                     #                                             member_class_obj.subobject_properties_for_constructor,
