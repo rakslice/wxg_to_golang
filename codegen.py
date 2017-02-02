@@ -38,10 +38,11 @@ def golang_str_repr(s):
 class GenFile(object):
     """Main code generation class"""
 
-    def __init__(self, generation_comments):
+    def __init__(self, generation_comments, wxgo_package_name):
         self.structs = []
         """:type: list of GenStruct"""
         self.generation_comments = generation_comments
+        self.wxgo_package_name = wxgo_package_name
 
     def code_gen(self, output_handle, package_name):
         """Generate a golang source code file for the structs this object has been populated with"""
@@ -55,7 +56,7 @@ class GenFile(object):
         print >> output_handle, ""
 
         print >> output_handle, "import ("
-        print >> output_handle, '\t"github.com/dontpanic92/wxGo/wx"'
+        print >> output_handle, '\t"%s/wx"' % self.wxgo_package_name
         print >> output_handle, ")"
 
         print >> output_handle, ""

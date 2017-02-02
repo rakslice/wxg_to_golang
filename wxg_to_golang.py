@@ -23,6 +23,9 @@ def parse_args():
     parser.add_argument("--package-name",
                         default="main",
                         help="golang package name to use in output go source code")
+    parser.add_argument("--wxgo-package-name",
+                        default="github.com/dontpanic92/wxGo",
+                        help="golang package name of the version of wxGo to use")
     return parser.parse_args()
 
 
@@ -43,7 +46,7 @@ def main():
     if not options.force and os.path.exists(output_filename):
         die("Output file '%s' already exists; use -f to overwrite" % output_filename)
 
-    wxg_golang_converter.convert(input_filename, output_filename, options.package_name)
+    wxg_golang_converter.convert(input_filename, output_filename, options.package_name, options.wxgo_package_name)
 
 
 if __name__ == "__main__":
