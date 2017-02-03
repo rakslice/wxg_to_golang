@@ -139,9 +139,9 @@ class GenFile(object):
                 else:
                     field_fragment = ".%s" % field_name
                 if additional_params_expressions is None:
-                    property_line = "window%s.Set%s()" % (field_fragment, property_name)
+                    property_line = "window%s.%s()" % (field_fragment, property_name)
                 else:
-                    property_line = "window%s.Set%s(%s)" % (field_fragment, property_name, additional_params_expressions)
+                    property_line = "window%s.%s(%s)" % (field_fragment, property_name, additional_params_expressions)
                 print >> output_handle, "\t%s" % property_line
 
             print >> output_handle, "}"

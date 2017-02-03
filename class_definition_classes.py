@@ -21,9 +21,9 @@ class WxObjectClass(object):
         self.constructor_params_form = constructor_params_form
         self.properties_for_constructor = properties_for_constructor
 
-    def add_property(self, tag_name, go_property_name, value_func=None):
+    def add_property(self, tag_name, go_property_name, value_func=None, go_property_set_prefix="Set"):
         assert tag_name not in self.properties
-        self.properties[tag_name] = (go_property_name, value_func)
+        self.properties[tag_name] = (go_property_set_prefix + go_property_name, value_func)
 
 
 class WxContainer(WxObjectClass):

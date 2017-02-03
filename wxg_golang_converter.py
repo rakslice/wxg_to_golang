@@ -1,8 +1,8 @@
+import functools
 import xml.dom.minidom
-
 import sys
-
 import datetime
+import operator
 
 from class_definition_classes import WxContainer, WxObjectClass
 from codegen import golang_str_repr, GenStruct, GenFile
@@ -15,6 +15,11 @@ def const_convert(s):
         return "wx.%s" % s[2:]
     else:
         assert False, "can't convert const %r" % s
+
+
+def compose(*functions):
+    # https://mathieularose.com/function-composition-in-python/
+    return functools.reduce(lambda f, g: lambda x: f(g(x)), functions, lambda x: x)
 
 
 def create_dict_from_list(l, key_property_name):
@@ -34,6 +39,13 @@ def make_size_expr(size_str):
     values = [int(x.strip()) for x in size_str.split(",")]
     size_expr = "wx.NewSize(%d, %d)" % tuple(values)
     return size_expr
+
+
+def golang_bool_repr(x):
+    if x:
+        return "true"
+    else:
+        return "false"
 
 
 BOX_SIZER = WxContainer("wxBoxSizer", "EditBoxSizer", "wx.BoxSizer", "wx.NewBoxSizer",
@@ -60,7 +72,10 @@ STATIC_BITMAP = WxObjectClass(wxg_name="wxStaticBitmap", base_name="EditStaticBi
 BUTTON = WxObjectClass(wxg_name="wxButton", base_name="EditButton", wx_class_name="wx.Button",
                        constructor_name="wx.NewButton",
                        constructor_params_form="wx.ID_ANY, %s, wx.DefaultPosition, wx.DefaultSize, 0, wx.DefaultValidator, %s",
-                       properties_for_constructor=[("label", golang_str_repr), ("label", golang_str_repr)])
+                       properties_for_constructor=[("label", golang_str_repr), ("label", golang_str_repr)],
+                       )
+
+BUTTON.add_property("disabled", "Enable", compose(golang_bool_repr, operator.not_, int), go_property_set_prefix="")
 
 """_init__(self, Window parent, int id=-1, String label=EmptyString,
             Point pos=DefaultPosition, Size size=DefaultSize,
@@ -113,12 +128,12 @@ def convert(input_filename, output_filename, package_name, wxgo_package_name):
                 size = child_element_text(form, "size", None)
                 if size is not None:
                     size_expr = make_size_expr(size)
-                    st.add_property_line(None, "Size", size_expr)
+                    st.add_property_line(None, "SetSize", size_expr)
 
                 bgcolor = child_element_text(form, "background", None)
                 if bgcolor is not None:
                     color_obj_expr = colour_obj_for_web_colour(bgcolor)
-                    st.add_property_line(None, "BackgroundColour", color_obj_expr)
+                    st.add_property_line(None, "SetBackgroundColour", color_obj_expr)
 
                 item_pops = [(obj, form_struct_field_name, None) for obj in child_elements(form, "object")]
 
@@ -256,7 +271,7 @@ def build_additional_params(constructor_params_form, properties_for_constructor,
                     print "During conversion of %s class=%s %s value %r:" % (dom_obj.nodeName, dom_obj.getAttribute("class"), property_name, pre_conversion_value)
                     raise
             if converted_value is None or converted_value == "":
-                msg = "During conversion of %s class=%s %s value %r, got converted value %r" % (dom_obj.nodeName, dom_obj.getAttribute("class"), property_name,
+                msg = "During conversion of %s class=%s property '%s' value %r, got converted value %r" % (dom_obj.nodeName, dom_obj.getAttribute("class"), property_name,
                                                                                                 pre_conversion_value,
                                                                                                 converted_value)
                 assert False, msg
