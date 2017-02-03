@@ -42,6 +42,11 @@ BOX_SIZER = WxContainer("wxBoxSizer", "EditBoxSizer", "wx.BoxSizer", "wx.NewBoxS
                         "%s, %s, %s", [("option", int), ("flag", const_convert, "0"), ("border", int)],
                         constructor_needs_parent=False
                         )
+PANEL = WxContainer("wxPanel", "EditPanel", "wx.Panel", "wx.NewPanel",
+                    "wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, %s", [("style", const_convert)], None,
+                    add_method_name="SetSizer",
+                    use_as_parent_object_for_enclosed_objects=True,
+                    )
 LABEL = WxObjectClass("wxStaticText", "EditStaticText", "wx.StaticText", "wx.NewStaticText",
                       "wx.ID_ANY, %s", [("label", golang_str_repr, '""')])
 LIST_BOX = WxObjectClass("wxListBox", "EditListBox", "wx.ListBox", "wx.NewListBox",
@@ -67,6 +72,7 @@ STATIC_BITMAP.add_property("size", "MinSize", make_size_expr)
 IGNORE_OBJECTS = []  # STATIC_BITMAP.base_name
 
 OBJECTS = [
+    PANEL,
     BOX_SIZER,
     LABEL,
     LIST_BOX,
@@ -114,12 +120,12 @@ def convert(input_filename, output_filename, package_name, wxgo_package_name):
                     color_obj_expr = colour_obj_for_web_colour(bgcolor)
                     st.add_property_line(None, "BackgroundColour", color_obj_expr)
 
-                item_pops = [(obj, form_struct_field_name) for obj in child_elements(form, "object")]
+                item_pops = [(obj, form_struct_field_name, None) for obj in child_elements(form, "object")]
 
                 need_sizer = True
 
                 while len(item_pops) > 0:
-                    obj, parent_field_name = item_pops.pop(0)
+                    obj, parent_field_name, parent_object_name = item_pops.pop(0)
 
                     object_base = obj.getAttribute("base")
                     if object_base in IGNORE_OBJECTS:
@@ -138,7 +144,7 @@ def convert(input_filename, output_filename, package_name, wxgo_package_name):
                         built_additional_params = build_additional_params(member_class_obj.constructor_params_form,
                                                                           member_class_obj.properties_for_constructor, obj)
                         st.add_init_line(member_name, member_class_obj.constructor_name, built_additional_params,
-                                         member_class_obj.constructor_needs_parent)
+                                         member_class_obj.constructor_needs_parent, parent_object_name=parent_object_name)
 
                         for tag_name, (go_property_name, value_func) in member_class_obj.properties.iteritems():
                             value = child_element_text(obj, tag_name, None)
@@ -158,12 +164,24 @@ def convert(input_filename, output_filename, package_name, wxgo_package_name):
                         # handle containers (enqueuing any contained objects)
 
                         if isinstance(member_class_obj, WxContainer):
-                            for subobject in child_elements(obj, "object"):
+                            if member_class_obj.use_as_parent_object_for_enclosed_objects:
+                                # use this object as a member object name for
+                                parent_object_name = member_name
+
+                            if member_class_obj.subobject_wxg_name is None:
+                                # this container has a single enclosed object directly inside
+                                subobjects = [obj]
+                            else:
+                                # this container has an object wrapper around each enclosed object
+                                subobjects = child_elements(obj, "object")
+
+                            for subobject in subobjects:
                                 subobject_class = subobject.getAttribute("class")
-                                assert subobject_class == subobject_class
+                                if member_class_obj.subobject_wxg_name is not None:
+                                    assert subobject_class == member_class_obj.subobject_wxg_name
 
                                 sizer_item_children = list(child_elements(subobject, "object"))
-                                assert len(sizer_item_children) == 1
+                                assert len(sizer_item_children) == 1, "expected %r object to have exactly one child" % subobject_class
                                 item_child = sizer_item_children[0]
 
                                 ic_base = item_child.getAttribute("base")
@@ -191,7 +209,7 @@ def convert(input_filename, output_filename, package_name, wxgo_package_name):
                                     continue
 
                                 item_child_name = item_child.getAttribute("name")
-                                item_pops.append((item_child, member_name))
+                                item_pops.append((item_child, member_name, parent_object_name))
 
                                 additional_params = build_additional_params(member_class_obj.subobject_constructor_params_form,
                                                                             member_class_obj.subobject_properties_for_constructor,
@@ -199,7 +217,7 @@ def convert(input_filename, output_filename, package_name, wxgo_package_name):
                                 # if parent_field_name == form_struct_field_name:
                                 #     continue
 
-                                st.add_layout_line(member_name, item_child_name, additional_params)
+                                st.add_layout_line(member_name, item_child_name, additional_params, method=member_class_obj.add_method_name)
 
                     else:
                         assert False, "Unknown base %s; did you remember to add its definition to the OBJECTS list?" % object_base

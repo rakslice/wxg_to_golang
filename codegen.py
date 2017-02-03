@@ -17,8 +17,8 @@ class GenStruct(object):
 
         self.bindings = []
 
-    def add_init_line(self, member_name, constructor, additional_params_expressions, takes_parent):
-        self.init_lines.append((member_name, constructor, additional_params_expressions, takes_parent))
+    def add_init_line(self, member_name, constructor, additional_params_expressions, takes_parent, parent_object_name=None):
+        self.init_lines.append((member_name, constructor, additional_params_expressions, takes_parent, parent_object_name))
 
     def add_property_line(self, field_name, property_name, additional_params_expressions):
         self.properties_lines.append((field_name, property_name, additional_params_expressions))
@@ -84,10 +84,14 @@ class GenFile(object):
             print >> output_handle, "\tout := &%s{}" % struct.name
             print >> output_handle, "\tout.%s = %s(wx.NullWindow, wx.ID_ANY, %s)" % (struct.self_field_name, struct.constructor, golang_str_repr(struct.title))
 
-            for member_name, constructor, additional_params_expressions, takes_parent in struct.init_lines:
+            for member_name, constructor, additional_params_expressions, takes_parent, parent_object_name in struct.init_lines:
                 param_fragments = []
                 if takes_parent:
-                    param_fragments.append("out")
+                    if parent_object_name is not None:
+                        parent_name = "out.%s" % parent_object_name
+                    else:
+                        parent_name = "out"
+                    param_fragments.append(parent_name)
                 if additional_params_expressions is not None:
                     param_fragments.append(additional_params_expressions)
                 init_line = "out.%s = %s(%s)" % (member_name, constructor, ", ".join(param_fragments))
