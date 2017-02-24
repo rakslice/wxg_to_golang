@@ -32,7 +32,7 @@ class WxContainer(WxObjectClass):
     """
     def __init__(self, wxg_name, base_name, wx_class_name, constructor_name, constructor_params_form, properties_for_constructor,
                  subobject_wxg_name, subobject_constructor_params_form=None, subobject_properties_for_constructor=None,
-                 add_method_name="Add", use_as_parent_object_for_enclosed_objects=False,
+                 add_method_name="Add", use_as_parent_object_for_enclosed_objects=False, expect_one_child=True,
                  **kwargs):
         super(WxContainer, self).__init__(wxg_name, base_name, wx_class_name, constructor_name, constructor_params_form, properties_for_constructor,
                                           **kwargs)
@@ -42,6 +42,7 @@ class WxContainer(WxObjectClass):
         self.subobject_properties_for_constructor = subobject_properties_for_constructor
         self.add_method_name = add_method_name
         self.use_as_parent_object_for_enclosed_objects = use_as_parent_object_for_enclosed_objects
+        self.expect_one_child = expect_one_child
 
     def add_subobject_field(self, tag_name, property_name, value_func=None):
         assert tag_name not in self.subobject_fields

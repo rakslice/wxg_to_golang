@@ -48,17 +48,62 @@ def golang_bool_repr(x):
         return "false"
 
 
+class LookupTagText(object):
+    """ A value converter that looks up values in a lookup table somewhere in the DOM """
+    def __init__(self, subobject_property_name, tag_path, attr_name, converter):
+        self.subobject_property_name = subobject_property_name
+        self.tag_path = tag_path
+        self.attr_name = attr_name
+        self.converter = converter
+
+    def __call__(self, dom_obj):
+        """:type dom_obj: xml.dom.minidom.Element"""
+        if self.subobject_property_name.startswith("@"):
+            match_value = dom_obj.getAttribute(self.subobject_property_name[1:])
+        else:
+            match_value = child_element_text(dom_obj, self.subobject_property_name)
+        parent = dom_obj.parentNode
+
+        for child_element in get_path_elements(parent, self.tag_path):
+            assert isinstance(child_element, xml.dom.minidom.Element)
+            if child_element.getAttribute(self.attr_name) == match_value:
+                return self.converter(element_text(child_element))
+
+        return None
+
+
+def get_path_elements(node, path):
+    if "/" in path:
+        first, rest = path.split("/", 1)
+        for child_node in child_elements(node, first):
+            for result in get_path_elements(child_node, rest):
+                yield result
+    else:
+        for result in child_elements(node, path):
+            yield result
+
 BOX_SIZER = WxContainer("wxBoxSizer", "EditBoxSizer", "wx.BoxSizer", "wx.NewBoxSizer",
                         "%s", [("orient", const_convert)],
                         "sizeritem",
                         "%s, %s, %s", [("option", int), ("flag", const_convert, "0"), ("border", int)],
                         constructor_needs_parent=False
                         )
+
 PANEL = WxContainer("wxPanel", "EditPanel", "wx.Panel", "wx.NewPanel",
                     "wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, %s", [("style", const_convert)], None,
                     add_method_name="SetSizer",
                     use_as_parent_object_for_enclosed_objects=True,
                     )
+
+NOTEBOOK = WxContainer("wxNotebook", "EditNotebook", "wx.Notebook", "wx.NewNotebook",
+                       "wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, %s, %s", [("style", int), ("@name", golang_str_repr)],
+                       subobject_wxg_name=None,
+                       expect_one_child=False, add_method_name="AddPage",
+                       subobject_constructor_params_form="%s",
+                       subobject_properties_for_constructor=[("DOM_CHILD_OBJECT", LookupTagText("@name", "tabs/tab", "window", golang_str_repr))],
+                       use_as_parent_object_for_enclosed_objects=True,
+                       )
+
 LABEL = WxObjectClass("wxStaticText", "EditStaticText", "wx.StaticText", "wx.NewStaticText",
                       "wx.ID_ANY, %s", [("label", golang_str_repr, '""')])
 LIST_BOX = WxObjectClass("wxListBox", "EditListBox", "wx.ListBox", "wx.NewListBox",
@@ -93,6 +138,7 @@ OBJECTS = [
     LIST_BOX,
     STATIC_BITMAP,
     BUTTON,
+    NOTEBOOK,
 ]
 """:type: list of WxObject"""
 
@@ -157,7 +203,7 @@ def convert(input_filename, output_filename, package_name, wxgo_package_name):
                         st.members.append((member_name, member_class_obj.wx_class_name))
 
                         built_additional_params = build_additional_params(member_class_obj.constructor_params_form,
-                                                                          member_class_obj.properties_for_constructor, obj)
+                                                                          member_class_obj.properties_for_constructor, obj, None)
                         st.add_init_line(member_name, member_class_obj.constructor_name, built_additional_params,
                                          member_class_obj.constructor_needs_parent, parent_object_name=parent_object_name)
 
@@ -196,43 +242,44 @@ def convert(input_filename, output_filename, package_name, wxgo_package_name):
                                     assert subobject_class == member_class_obj.subobject_wxg_name
 
                                 sizer_item_children = list(child_elements(subobject, "object"))
-                                assert len(sizer_item_children) == 1, "expected %r object to have exactly one child" % subobject_class
-                                item_child = sizer_item_children[0]
+                                if member_class_obj.expect_one_child:
+                                    assert len(sizer_item_children) == 1, "expected %r object to have exactly one child" % subobject_class
+                                for item_child in sizer_item_children:
 
-                                ic_base = item_child.getAttribute("base")
+                                    ic_base = item_child.getAttribute("base")
 
-                                if ic_base == "EditSpacer":
-                                    is_horiz = obj.getAttribute("orient") == "wxHORIZONTAL"
+                                    if ic_base == "EditSpacer":
+                                        is_horiz = obj.getAttribute("orient") == "wxHORIZONTAL"
 
-                                    if is_horiz:
-                                        height = int(child_element_text(item_child, "height"))
-                                        spacer_size = height
-                                    else:
-                                        width = int(child_element_text(item_child, "width"))
-                                        spacer_size = width
+                                        if is_horiz:
+                                            height = int(child_element_text(item_child, "height"))
+                                            spacer_size = height
+                                        else:
+                                            width = int(child_element_text(item_child, "width"))
+                                            spacer_size = width
 
-                                    # additional_params = build_additional_params(member_class_obj.subobject_constructor_params_form,
-                                    #                                             member_class_obj.subobject_properties_for_constructor,
-                                    #                                             subobject)
+                                        # additional_params = build_additional_params(member_class_obj.subobject_constructor_params_form,
+                                        #                                             member_class_obj.subobject_properties_for_constructor,
+                                        #                                             subobject)
 
-                                    st.add_layout_line(member_name, "%d" % spacer_size, None, False,
-                                                       method="AddSpacer")
+                                        st.add_layout_line(member_name, "%d" % spacer_size, None, False,
+                                                           method="AddSpacer")
 
-                                    continue
+                                        continue
 
-                                elif ic_base in IGNORE_OBJECTS:
-                                    continue
+                                    elif ic_base in IGNORE_OBJECTS:
+                                        continue
 
-                                item_child_name = item_child.getAttribute("name")
-                                item_pops.append((item_child, member_name, parent_object_name))
+                                    item_child_name = item_child.getAttribute("name")
+                                    item_pops.append((item_child, member_name, parent_object_name))
 
-                                additional_params = build_additional_params(member_class_obj.subobject_constructor_params_form,
-                                                                            member_class_obj.subobject_properties_for_constructor,
-                                                                            subobject)
-                                # if parent_field_name == form_struct_field_name:
-                                #     continue
+                                    additional_params = build_additional_params(member_class_obj.subobject_constructor_params_form,
+                                                                                member_class_obj.subobject_properties_for_constructor,
+                                                                                subobject, item_child)
+                                    # if parent_field_name == form_struct_field_name:
+                                    #     continue
 
-                                st.add_layout_line(member_name, item_child_name, additional_params, method=member_class_obj.add_method_name)
+                                    st.add_layout_line(member_name, item_child_name, additional_params, method=member_class_obj.add_method_name)
 
                     else:
                         assert False, "Unknown base %s; did you remember to add its definition to the OBJECTS list?" % object_base
@@ -248,7 +295,7 @@ def colour_obj_for_web_colour(color_str):
     return color_obj_expr
 
 
-def build_additional_params(constructor_params_form, properties_for_constructor, dom_obj):
+def build_additional_params(constructor_params_form, properties_for_constructor, dom_obj, item_child):
     if constructor_params_form is None:
         built_additional_params = None
     else:
@@ -261,7 +308,14 @@ def build_additional_params(constructor_params_form, properties_for_constructor,
                 property_name, convert_func, default_value = properties_entry
             else:
                 assert False, "invalid properties_for_constructor entry %r" % properties_entry
-            pre_conversion_value = child_element_text(dom_obj, property_name, None)
+            if property_name == "DOM_OBJECT":
+                pre_conversion_value = dom_obj
+            elif property_name == "DOM_CHILD_OBJECT":
+                pre_conversion_value = item_child
+            elif property_name.startswith("@"):
+                pre_conversion_value = dom_obj.getAttribute(property_name[1:])
+            else:
+                pre_conversion_value = child_element_text(dom_obj, property_name, None)
             if pre_conversion_value is None:
                 converted_value = default_value
             else:
@@ -271,9 +325,11 @@ def build_additional_params(constructor_params_form, properties_for_constructor,
                     print "During conversion of %s class=%s %s value %r:" % (dom_obj.nodeName, dom_obj.getAttribute("class"), property_name, pre_conversion_value)
                     raise
             if converted_value is None or converted_value == "":
-                msg = "During conversion of %s class=%s property '%s' value %r, got converted value %r" % (dom_obj.nodeName, dom_obj.getAttribute("class"), property_name,
-                                                                                                pre_conversion_value,
-                                                                                                converted_value)
+                msg = "During conversion of %s class=%s property '%s' value %r, got converted value %r" % (dom_obj.nodeName,
+                                                                                                           dom_obj.getAttribute("class"),
+                                                                                                           property_name,
+                                                                                                           pre_conversion_value,
+                                                                                                           converted_value)
                 assert False, msg
             constructor_param_values.append(converted_value)
         if len(constructor_param_values) == 1:
