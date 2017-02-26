@@ -5,8 +5,8 @@ import datetime
 import operator
 
 from class_definition_classes import WxContainer, WxObjectClass
-from codegen import golang_str_repr, GenStruct, GenFile
 from xml_helpers import child_elements, child_element_text, element_text
+from codegen import golang_str_repr, GenStruct, GenFile, golang_int
 
 
 def const_convert(s):
@@ -96,7 +96,7 @@ PANEL = WxContainer("wxPanel", "EditPanel", "wx.Panel", "wx.NewPanel",
                     )
 
 NOTEBOOK = WxContainer("wxNotebook", "EditNotebook", "wx.Notebook", "wx.NewNotebook",
-                       "wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, %s, %s", [("style", int), ("@name", golang_str_repr)],
+                       "wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, %s, %s", [("style", golang_int, 0), ("@name", golang_str_repr)],
                        subobject_wxg_name=None,
                        expect_one_child=False, add_method_name="AddPage",
                        subobject_constructor_params_form="%s",

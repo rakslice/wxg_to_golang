@@ -35,6 +35,12 @@ def golang_str_repr(s):
     return '"%s"' % s.replace('"', r'\"').replace('\\', '\\\\')
 
 
+def golang_int(i, default=0):
+    if i is None:
+        i = default
+    return int(i)
+
+
 class GenFile(object):
     """Main code generation class"""
 
