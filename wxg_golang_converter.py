@@ -62,9 +62,8 @@ class LookupTagText(object):
             match_value = dom_obj.getAttribute(self.subobject_property_name[1:])
         else:
             match_value = child_element_text(dom_obj, self.subobject_property_name)
-        parent = dom_obj.parentNode
 
-        for child_element in get_path_elements(parent, self.tag_path):
+        for child_element in get_path_elements(dom_obj, self.tag_path):
             assert isinstance(child_element, xml.dom.minidom.Element)
             if child_element.getAttribute(self.attr_name) == match_value:
                 return self.converter(element_text(child_element))
@@ -90,7 +89,7 @@ NOTEBOOK = WxContainer("wxNotebook", "EditNotebook", "wx.Notebook", "wx.NewNoteb
                        subobject_wxg_name=None,
                        expect_one_child=False, add_method_name="AddPage",
                        subobject_constructor_params_form="%s",
-                       subobject_properties_for_constructor=[("DOM_CHILD_OBJECT", LookupTagText("@name", "tabs/tab", "window", golang_str_repr))],
+                       subobject_properties_for_constructor=[("DOM_CHILD_OBJECT", LookupTagText("@name", "../tabs/tab", "window", golang_str_repr))],
                        use_as_parent_object_for_enclosed_objects=True,
                        )
 

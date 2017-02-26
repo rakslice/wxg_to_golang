@@ -47,9 +47,14 @@ def get_path_elements(node, path):
     """:rtype: collections.Iterable[xml.dom.minidom.Element]"""
     if "/" in path:
         first, rest = path.split("/", 1)
-        for child_node in child_elements(node, first):
-            for result in get_path_elements(child_node, rest):
+        if first == "..":
+            parent = node.parentNode
+            for result in get_path_elements(parent, rest):
                 yield result
+        else:
+            for child_node in child_elements(node, first):
+                for result in get_path_elements(child_node, rest):
+                    yield result
     else:
         for result in child_elements(node, path):
             yield result
