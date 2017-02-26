@@ -5,8 +5,8 @@ import datetime
 import operator
 
 from class_definition_classes import WxContainer, WxObjectClass
-from xml_helpers import child_elements, child_element_text, element_text
 from codegen import golang_str_repr, GenStruct, GenFile, golang_int
+from xml_helpers import child_elements, child_element_text, element_text, get_path_elements
 
 
 def const_convert(s):
@@ -71,16 +71,6 @@ class LookupTagText(object):
 
         return None
 
-
-def get_path_elements(node, path):
-    if "/" in path:
-        first, rest = path.split("/", 1)
-        for child_node in child_elements(node, first):
-            for result in get_path_elements(child_node, rest):
-                yield result
-    else:
-        for result in child_elements(node, path):
-            yield result
 
 BOX_SIZER = WxContainer("wxBoxSizer", "EditBoxSizer", "wx.BoxSizer", "wx.NewBoxSizer",
                         "%s", [("orient", const_convert)],
