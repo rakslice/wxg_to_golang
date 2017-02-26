@@ -4,7 +4,7 @@ import sys
 import datetime
 import operator
 
-from class_definition_classes import WxContainer, WxObjectClass
+from class_definition_classes import WxContainer, WxObjectClass, WxCustomWidget
 from codegen import golang_str_repr, GenStruct, GenFile, golang_int
 from xml_helpers import child_elements, child_element_text, element_text, get_path_elements
 
@@ -94,6 +94,8 @@ NOTEBOOK = WxContainer("wxNotebook", "EditNotebook", "wx.Notebook", "wx.NewNoteb
                        use_as_parent_object_for_enclosed_objects=True,
                        )
 
+CUSTOMWIDGET = WxCustomWidget()
+
 LABEL = WxObjectClass("wxStaticText", "EditStaticText", "wx.StaticText", "wx.NewStaticText",
                       "wx.ID_ANY, %s", [("label", golang_str_repr, '""')])
 LIST_BOX = WxObjectClass("wxListBox", "EditListBox", "wx.ListBox", "wx.NewListBox",
@@ -129,6 +131,7 @@ OBJECTS = [
     STATIC_BITMAP,
     BUTTON,
     NOTEBOOK,
+    CUSTOMWIDGET
 ]
 """:type: list of WxObject"""
 
@@ -184,6 +187,8 @@ def convert(input_filename, output_filename, package_name, wxgo_package_name):
                     elif object_base in wx_object_classes_map:
                         member_class_obj = wx_object_classes_map[object_base]
                         assert isinstance(member_class_obj, WxObjectClass)
+
+                        member_class_obj.setup_for_dom_obj(obj)
 
                         member_name = obj.getAttribute("name")
                         if need_sizer:
@@ -270,6 +275,8 @@ def convert(input_filename, output_filename, package_name, wxgo_package_name):
                                     #     continue
 
                                     st.add_layout_line(member_name, item_child_name, additional_params, method=member_class_obj.add_method_name)
+
+                        member_class_obj.teardown_for_dom_obj(obj)
 
                     else:
                         assert False, "Unknown base %s; did you remember to add its definition to the OBJECTS list?" % object_base
