@@ -256,9 +256,14 @@ def convert(input_filename, output_filename, package_name, wxgo_package_name):
                                         #                                             member_class_obj.subobject_properties_for_constructor,
                                         #                                             subobject)
 
-                                        st.add_layout_line(member_name, "%d" % spacer_size, None, False,
-                                                           method="AddSpacer")
+                                        proportion = int(child_element_text(subobject, "option", 0))
 
+                                        if proportion == 0:
+                                            st.add_layout_line(member_name, "%d" % spacer_size, None, False,
+                                                               method="AddSpacer")
+                                        else:
+                                            st.add_layout_line(member_name, "%d" % proportion, None, False,
+                                                               method="AddStretchSpacer")
                                         continue
 
                                     elif ic_base in IGNORE_OBJECTS:
